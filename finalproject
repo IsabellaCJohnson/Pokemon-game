@@ -1,0 +1,140 @@
+import requests
+import random
+import csv
+
+
+def random_pokemon():
+    my_pokemon_id = random.randint(1, 151)
+    pokemon_url = f"https://pokeapi.co/api/v2/pokemon/{my_pokemon_id}"
+    species_url = f"https://pokeapi.co/api/v2/pokemon-species/{my_pokemon_id}"
+
+    pokemon_response = requests.get(pokemon_url)
+    species_response = requests.get(species_url)
+
+    pokemon_data = pokemon_response.json()
+    species_data = species_response.json()
+
+    return pokemon_data, species_data
+
+
+def create_pokemon_dictionary(pokemon_data, species_data):
+    return {
+        "name": pokemon_data["name"],
+        "id": pokemon_data["id"],
+        "height": pokemon_data["height"],
+        "weight": pokemon_data["weight"],
+        "base_happiness": species_data["base_happiness"],
+        "capture_rate": species_data["capture_rate"]
+    }
+
+
+def read_money_total():
+    try:
+        with open('pokemonscore.csv', 'r', newline='') as file:
+            reader = csv.reader(file)
+            for row in reader:
+                if row:
+                    return int(row[0])
+    except FileNotFoundError:
+        # If the file does not exist, return the default starting money
+        return 50
+
+
+def write_money_total(money_total):
+    with open('pokemonscore.csv', 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([money_total])
+
+
+# money pot
+print('You have £50 to begin with, winning gives you £50, losing takes away £25!')
+
+
+def choose_stat(my_money):
+    # Ask if the player wants to use an item card only once
+    use_item = input("Do you want to use an item card? (yes/no): ").lower()
+    if use_item == 'yes':
+        my_money, item = use_item_card(my_money)
+        if item:
+            print(item)
+    your_pokemon_data, _ = random_pokemon()
+    opponent_pokemon_data, _ = random_pokemon()
+    print(f"You were given {your_pokemon_data['name']}")
+    print(f"Your opponent was given {opponent_pokemon_data['name']}")
+    while True:
+        print("Choose a stat:")
+        print("id")
+        print("height")
+        print("weight")
+        print("base_happiness")
+        print("capture_rate")
+        choice = input("Enter your choice (id/height/weight/base_happiness/capture_rate): ")
+
+        if choice in ["id", "height", "weight", "base_happiness", "capture_rate"]:
+            break  # Exit the loop if choice is valid
+        else:
+            print("Invalid stat choice. Please try again.")
+
+    return choice, my_money
+
+
+def compare_stats(choice, your_pokemon, opponent_pokemon, my_money):
+
+    stat_names = ["id", "height", "weight", "base_happiness", "capture_rate"]
+
+    # Check if the choice is a valid stat
+    if choice in stat_names:
+        selected_stat = choice
+    else:
+        print("Invalid stat choice.")
+        return my_money
+
+    # Get the stats for both the player's and opponent's Pokemon
+    your_stat = your_pokemon[selected_stat]
+    opponent_stat = opponent_pokemon[selected_stat]
+
+    # Print the stats
+    print(f"Your {selected_stat}: {your_stat}")
+    print(f"Opponent's {selected_stat}: {opponent_stat}")
+
+    # Compare the stats and print the result
+    if your_stat > opponent_stat:
+        my_money += 50
+        print("You Won! You now have £{}.".format(my_money))
+    elif your_stat == opponent_stat:
+        print("You Drew! You still have £{}.".format(my_money))
+    else:
+        my_money -= 25
+        print("You Lost! You now have £{}.".format(my_money))
+
+    return my_money
+
+
+def use_item_card(my_money):
+    item = None
+    if my_money is None:
+        my_money = 0  # Initialize my_money to 0 if it is None
+    item = random.choice(["Shadow Punch", "Pikachu's Cuteness"])
+    if item == "Shadow Punch":
+        print("The Dusknoir gave you a Shadow Punch. You have lost £10")
+        my_money -= 10
+    else:
+        print("Your friend Pikachu's cuteness has distracted the opponent. You win £10")
+        my_money += 10
+    return my_money, item
+
+
+# Main game loop
+my_money = read_money_total()
+while True:
+    your_choice, my_money = choose_stat(my_money)
+    my_pokemon_data, my_species_data = random_pokemon()
+    opponent_pokemon_data, opponent_species_data = random_pokemon()
+    your_pokemon = create_pokemon_dictionary(my_pokemon_data, my_species_data)
+    opponent_pokemon = create_pokemon_dictionary(opponent_pokemon_data, opponent_species_data)
+    my_money = compare_stats(your_choice, your_pokemon, opponent_pokemon, my_money)
+    write_money_total(my_money)
+    if input("Do you want to play again? (yes/no): ").lower() == 'no':
+        my_money = 50  # Reset the money total to 50
+        write_money_total(my_money)  # Update the CSV file
+        break
